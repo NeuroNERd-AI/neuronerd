@@ -15,6 +15,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { useAuth } from '@/contexts/AuthContext';
 import { mockCurrentUser } from '@/data/mockData';
 
 type TextSize = 'small' | 'medium' | 'large';
@@ -105,6 +106,7 @@ const navLinks = [
 ];
 
 export function SettingsPage() {
+  const { signOut } = useAuth();
   const [name, setName] = useState(mockCurrentUser.name);
   const [email, setEmail] = useState(mockCurrentUser.email);
   const [textSize, setTextSize] = useState<TextSize>('medium');
@@ -460,6 +462,7 @@ export function SettingsPage() {
           <div className="space-y-3 py-3">
             <button
               type="button"
+              onClick={() => void signOut()}
               className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" /> Sign out

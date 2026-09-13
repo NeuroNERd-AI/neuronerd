@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   Activity,
@@ -30,10 +30,11 @@ import {
   getAlertsByPatient,
   getGameSessionsByPatient,
   getMemoriesByPatient,
-  getPatientById,
   getRemindersByPatient,
   getUniqueGamesByPatient,
 } from '@/services/dataService';
+import { getPatientById } from '@/services/patientService';
+import type { Patient } from '@/types';
 
 type TabId = 'overview' | 'activity' | 'games' | 'reminders' | 'memories' | 'alerts' | 'timeline';
 
@@ -47,9 +48,10 @@ const tabs: { id: TabId; label: string; icon: typeof Activity }[] = [
   { id: 'timeline', label: 'Timeline', icon: History },
 ];
 
-function formatRelativeDate(value: string): string {
+function formatRelativeDate(value?: string): string {
+  if (!value) return 'Not available';
   const date = new Date(value);
-  const today = new Date('2026-09-08T23:59:59Z');
+  const today = new Date();
   const diffMs = today.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   if (diffDays <= 0) return 'Today';
@@ -61,7 +63,25 @@ function formatRelativeDate(value: string): string {
 export function PatientDetailPage() {
   const { patientId = '' } = useParams();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
-  const patient = getPatientById(patientId);
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    setLoading(true);
+    getPatientById(patientId).then((result) => {
+      if (!mounted) return;
+      setPatient(result.data);
+      setError(result.error);
+      setLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [patientId]);
 
   const sessions = useMemo(() => patient ? getGameSessionsByPatient(patientId) : [], [patientId, patient]);
   const reminders = useMemo(() => patient ? getRemindersByPatient(patientId) : [], [patientId, patient]);
@@ -77,6 +97,14 @@ export function PatientDetailPage() {
     const alertEvents: TimelineEvent[] = alerts.map((a) => ({ id: a.id, type: 'alert', title: a.title, description: a.message, timestamp: a.createdAt }));
     return [...gameEvents, ...reminderEvents, ...memoryEvents, ...alertEvents].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 12);
   }, [patient, sessions, reminders, memories, alerts]);
+
+  if (loading) {
+    return <div className="mx-auto max-w-4xl"><div className="card p-5 text-sm text-slate-500">Loading patient...</div></div>;
+  }
+
+  if (error) {
+    return <div className="mx-auto max-w-4xl"><div className="card p-5 text-sm text-red-600" role="alert">Unable to load this patient: {error}</div></div>;
+  }
 
   if (!patient) {
     return (
@@ -102,18 +130,18 @@ export function PatientDetailPage() {
 
       <PageHeader
         title={patient.name}
-        description={`Patient profile · Age ${patient.age}`}
+        description={`Patient profile${patient.age !== undefined ? ` · Age ${patient.age}` : ''}`}
         actions={<PatientStatusBadge status={patient.status} />}
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card flex items-center gap-3 p-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50"><User className="h-5 w-5 text-blue-600" aria-hidden="true" /></div>
-          <div><p className="text-xs text-slate-500">Age</p><p className="text-sm font-semibold text-slate-900">{patient.age} years</p></div>
+          <div><p className="text-xs text-slate-500">Age</p><p className="text-sm font-semibold text-slate-900">{patient.age !== undefined ? `${patient.age} years` : 'Not available'}</p></div>
         </div>
         <div className="card flex items-center gap-3 p-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-50"><Globe className="h-5 w-5 text-teal-600" aria-hidden="true" /></div>
-          <div><p className="text-xs text-slate-500">Preferred language</p><p className="text-sm font-semibold text-slate-900">{patient.preferredLanguage}</p></div>
+          <div><p className="text-xs text-slate-500">Preferred language</p><p className="text-sm font-semibold text-slate-900">{patient.preferredLanguage || 'Not available'}</p></div>
         </div>
         <div className="card flex items-center gap-3 p-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50"><Clock3 className="h-5 w-5 text-amber-600" aria-hidden="true" /></div>
@@ -121,7 +149,7 @@ export function PatientDetailPage() {
         </div>
         <div className="card flex items-center gap-3 p-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50"><Users className="h-5 w-5 text-green-600" aria-hidden="true" /></div>
-          <div><p className="text-xs text-slate-500">Caregiver</p><p className="truncate text-sm font-semibold text-slate-900">{patient.caregiverName}</p></div>
+          <div><p className="text-xs text-slate-500">Caregiver</p><p className="truncate text-sm font-semibold text-slate-900">{patient.caregiverName || 'Not available'}</p></div>
         </div>
       </div>
 

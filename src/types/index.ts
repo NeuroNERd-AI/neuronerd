@@ -13,15 +13,15 @@ export type PatientStatus = 'stable' | 'needs_attention' | 'critical';
 export interface Patient {
   id: string;
   name: string;
-  age: number;
+  age?: number;
   photoUrl?: string;
   status: PatientStatus;
-  caregiverId: string;
-  caregiverName: string;
+  caregiverId?: string;
+  caregiverName?: string;
   healthcareWorkerId?: string;
   healthcareWorkerName?: string;
-  lastActiveAt: string;
-  preferredLanguage: string;
+  lastActiveAt?: string;
+  preferredLanguage?: string;
   notes?: string;
 }
 

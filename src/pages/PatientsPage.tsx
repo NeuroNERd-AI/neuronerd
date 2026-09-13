@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Search, UserPlus, Users, ArrowUpDown } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { PatientCard } from '@/components/patients/PatientCard';
 import { PatientRow } from '@/components/patients/PatientRow';
-import { mockPatients } from '@/data/mockData';
 import {
   getLatestGameSession,
   getPatientReminderStatus,
 } from '@/services/dataService';
+import { getPatients } from '@/services/patientService';
+import type { Patient } from '@/types';
 import type { PatientStatus } from '@/types';
 
 type StatusFilter = 'all' | PatientStatus;
@@ -26,9 +27,10 @@ const sortOptions: { value: SortKey; label: string }[] = [
   { value: 'lastActive', label: 'Last active' },
 ];
 
-function formatRelativeDate(value: string): string {
+function formatRelativeDate(value?: string): string {
+  if (!value) return 'Not available';
   const date = new Date(value);
-  const today = new Date('2026-09-08T23:59:59Z');
+  const today = new Date();
   const diffMs = today.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   if (diffDays <= 0) return 'Today';
@@ -38,26 +40,44 @@ function formatRelativeDate(value: string): string {
 }
 
 export function PatientsPage() {
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortKey, setSortKey] = useState<SortKey>('name');
 
+  useEffect(() => {
+    let mounted = true;
+
+    getPatients().then((result) => {
+      if (!mounted) return;
+      setPatients(result.data);
+      setError(result.error);
+      setLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const filteredPatients = useMemo(() => {
     const lowerSearch = search.trim().toLowerCase();
-    const filtered = mockPatients.filter((patient) => {
-      const matchesSearch = !lowerSearch || patient.name.toLowerCase().includes(lowerSearch) || patient.caregiverName.toLowerCase().includes(lowerSearch);
+    const filtered = patients.filter((patient) => {
+      const matchesSearch = !lowerSearch || patient.name.toLowerCase().includes(lowerSearch) || (patient.caregiverName ?? '').toLowerCase().includes(lowerSearch);
       const matchesStatus = statusFilter === 'all' || patient.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
 
     const sorted = [...filtered].sort((a, b) => {
       if (sortKey === 'name') return a.name.localeCompare(b.name);
-      if (sortKey === 'age') return b.age - a.age;
-      return b.lastActiveAt.localeCompare(a.lastActiveAt);
+      if (sortKey === 'age') return (b.age ?? -1) - (a.age ?? -1);
+      return (b.lastActiveAt ?? '').localeCompare(a.lastActiveAt ?? '');
     });
 
     return sorted;
-  }, [search, statusFilter, sortKey]);
+  }, [patients, search, statusFilter, sortKey]);
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -111,10 +131,14 @@ export function PatientsPage() {
       </div>
 
       <p className="mb-4 text-sm text-slate-500" aria-live="polite">
-        {filteredPatients.length} {filteredPatients.length === 1 ? 'patient' : 'patients'} found
+        {loading ? 'Loading patients...' : `${filteredPatients.length} ${filteredPatients.length === 1 ? 'patient' : 'patients'} found`}
       </p>
 
-      {filteredPatients.length === 0 ? (
+      {error ? (
+        <div className="card p-5 text-sm text-red-600" role="alert">Unable to load patients: {error}</div>
+      ) : loading ? (
+        <div className="card p-5 text-sm text-slate-500">Loading patients...</div>
+      ) : filteredPatients.length === 0 ? (
         <div className="card">
           <EmptyState title="No patients found" description="Try adjusting your search or filters to see results." icon={Users} />
         </div>

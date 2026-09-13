@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Activity,
@@ -16,28 +17,48 @@ import { ReminderCard } from '@/components/dashboard/ReminderCard';
 import { SummaryCard } from '@/components/dashboard/SummaryCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { PatientStatusBadge } from '@/components/ui/StatusBadge';
-import { mockAlerts, mockCurrentUser, mockGameSessions, mockPatients } from '@/data/mockData';
+import { mockAlerts, mockCurrentUser, mockGameSessions } from '@/data/mockData';
 import {
   getDailyActivity,
-  getPatientsNeedingAttention,
   getPatientById,
   getTodayGameSessions,
   getTodayReminders,
 } from '@/services/dataService';
+import { getPatients } from '@/services/patientService';
+import type { Patient } from '@/types';
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(value));
 }
 
 export function DashboardPage() {
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patientsLoading, setPatientsLoading] = useState(true);
+  const [patientError, setPatientError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    getPatients().then((result) => {
+      if (!mounted) return;
+      setPatients(result.data);
+      setPatientError(result.error);
+      setPatientsLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const todaySessions = getTodayGameSessions();
   const todayReminders = getTodayReminders();
-  const patientsNeedingAttention = getPatientsNeedingAttention();
+  const patientsNeedingAttention = patients.filter((patient) => patient.status !== 'stable');
   const dailyActivity = getDailyActivity();
   const recentSessions = [...mockGameSessions].sort((a, b) => b.completedAt.localeCompare(a.completedAt)).slice(0, 5);
   const activePatientIds = new Set(todaySessions.map((session) => session.patientId));
   const completedReminders = todayReminders.filter((reminder) => reminder.completed).length;
-  const engagedPercentage = Math.round((activePatientIds.size / mockPatients.length) * 100);
+  const engagedPercentage = patients.length > 0 ? Math.round((activePatientIds.size / patients.length) * 100) : 0;
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -52,7 +73,7 @@ export function DashboardPage() {
           <h2 id="overview-heading" className="text-sm font-semibold uppercase tracking-wide text-slate-500">Today at a glance</h2>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard label="Total patients" value={mockPatients.length} detail="People in your care circle" icon={Users} tone="blue" />
+          <SummaryCard label="Total patients" value={patientsLoading ? '...' : patients.length} detail="People in your care circle" icon={Users} tone="blue" />
           <SummaryCard label="Active patients" value={activePatientIds.size} detail="Engaged with activities today" icon={Activity} tone="green" />
           <SummaryCard label="Sessions completed today" value={todaySessions.length} detail="Game sessions completed" icon={Gamepad2} tone="teal" />
           <SummaryCard label="Reminders due today" value={todayReminders.length - completedReminders} detail={`${completedReminders} completed so far`} icon={Clock3} tone="amber" />
@@ -72,7 +93,11 @@ export function DashboardPage() {
               View all <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
-          {patientsNeedingAttention.length > 0 ? (
+          {patientError ? (
+            <p className="p-5 text-sm text-red-600" role="alert">Unable to load patients: {patientError}</p>
+          ) : patientsLoading ? (
+            <p className="p-5 text-sm text-slate-500">Loading patients...</p>
+          ) : patientsNeedingAttention.length > 0 ? (
             <div className="divide-y divide-slate-100">
               {patientsNeedingAttention.map((patient) => (
                 <Link key={patient.id} to={`/patients/${patient.id}`} className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-slate-50">
