@@ -109,13 +109,18 @@ export function mapGameSession(row: GameSessionRow): GameSession {
   const durationMinutes = calculateDurationMinutes(row.started_at, row.completed_at);
   const completedAt = row.completed_at || row.created_at || new Date().toISOString();
 
+  // DB stores accuracy as a 0–1 decimal (enforced by CHECK constraint).
+  // All UI consumers (chart domain [0,100], table/card "{n}%" label) expect a 0–100 percentage.
+  const rawAccuracy = result?.accuracy ?? 0;
+  const accuracyPercent = Math.round(rawAccuracy * 100);
+
   return {
     id: row.id,
     patientId: row.patient_id,
     gameType,
     gameName,
     score: result?.score ?? 0,
-    accuracy: result?.accuracy ?? 0,
+    accuracy: accuracyPercent,
     durationMinutes,
     completedAt,
     attempts: result?.attempts_count ?? 1,
