@@ -1,5 +1,5 @@
 import { CheckCircle2, Clock3, Gamepad2, XCircle } from 'lucide-react';
-import type { GameAnalytics } from '@/services/dataService';
+import type { GameAnalytics } from '@/services/gameService';
 
 interface GamePerformanceTableProps {
   analytics: GameAnalytics[];

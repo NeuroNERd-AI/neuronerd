@@ -7,9 +7,9 @@ import { GamePerformanceCard } from '@/components/patients/GamePerformanceCard';
 import { GamePerformanceTable } from '@/components/patients/GamePerformanceTable';
 import { GameSessionDetail } from '@/components/patients/GameSessionDetail';
 import { TabBar } from '@/components/patients/TabBar';
-import { getGameAnalyticsByPatient, type GameAnalytics } from '@/services/dataService';
+import { calculateGameAnalytics, getGameSessionsByPatient, type GameAnalytics } from '@/services/gameService';
 import { getPatientById } from '@/services/patientService';
-import type { Patient } from '@/types';
+import type { GameSession, Patient } from '@/types';
 
 type TabId = 'overview' | 'memory_match' | 'object_recall' | 'pattern_sequence';
 
@@ -30,13 +30,18 @@ export function GameAnalyticsPage() {
   const { patientId = '' } = useParams();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [patient, setPatient] = useState<Patient | null>(null);
+  const [sessions, setSessions] = useState<GameSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
     setLoading(true);
+    setSessionsLoading(true);
+
     getPatientById(patientId).then((result) => {
       if (!mounted) return;
       setPatient(result.data);
@@ -44,17 +49,24 @@ export function GameAnalyticsPage() {
       setLoading(false);
     });
 
+    getGameSessionsByPatient(patientId).then((result) => {
+      if (!mounted) return;
+      setSessions(result.data);
+      setSessionsError(result.error);
+      setSessionsLoading(false);
+    });
+
     return () => {
       mounted = false;
     };
   }, [patientId]);
 
-  const analytics = useMemo(() => getGameAnalyticsByPatient(patientId), [patientId]);
+  const analytics = useMemo(() => calculateGameAnalytics(sessions), [sessions]);
 
-  if (loading) {
+  if (loading || sessionsLoading) {
     return (
       <div className="mx-auto max-w-4xl">
-        <div className="card p-5 text-sm text-slate-500">Loading patient...</div>
+        <div className="card p-5 text-sm text-slate-500">Loading game analytics...</div>
       </div>
     );
   }
@@ -97,6 +109,12 @@ export function GameAnalyticsPage() {
         title="Game Analytics"
         description={`${patient.name} · Cognitive game activity data`}
       />
+
+      {sessionsError && (
+        <div className="mb-6 card p-4 text-sm text-amber-700 bg-amber-50" role="alert">
+          Unable to load game activity from database: {sessionsError}
+        </div>
+      )}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="card flex items-center gap-3 p-4">

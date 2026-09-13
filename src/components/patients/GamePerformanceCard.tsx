@@ -1,5 +1,5 @@
 import { CheckCircle2, Clock3, Gamepad2, Target, TrendingDown, TrendingUp, Minus } from 'lucide-react';
-import type { GameAnalytics } from '@/services/dataService';
+import type { GameAnalytics } from '@/services/gameService';
 import { PerformanceTrendChart } from '@/components/patients/PerformanceTrendChart';
 
 interface GamePerformanceCardProps {

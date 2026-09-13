@@ -28,13 +28,12 @@ import { TabBar } from '@/components/patients/TabBar';
 import { Timeline, type TimelineEvent } from '@/components/patients/Timeline';
 import {
   getAlertsByPatient,
-  getGameSessionsByPatient,
   getMemoriesByPatient,
   getRemindersByPatient,
-  getUniqueGamesByPatient,
 } from '@/services/dataService';
+import { getGameSessionsByPatient } from '@/services/gameService';
 import { getPatientById } from '@/services/patientService';
-import type { Patient } from '@/types';
+import type { GameSession, Patient } from '@/types';
 
 type TabId = 'overview' | 'activity' | 'games' | 'reminders' | 'memories' | 'alerts' | 'timeline';
 
@@ -64,13 +63,18 @@ export function PatientDetailPage() {
   const { patientId = '' } = useParams();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [patient, setPatient] = useState<Patient | null>(null);
+  const [sessions, setSessions] = useState<GameSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
     setLoading(true);
+    setSessionsLoading(true);
+
     getPatientById(patientId).then((result) => {
       if (!mounted) return;
       setPatient(result.data);
@@ -78,16 +82,22 @@ export function PatientDetailPage() {
       setLoading(false);
     });
 
+    getGameSessionsByPatient(patientId).then((result) => {
+      if (!mounted) return;
+      setSessions(result.data);
+      setSessionsError(result.error);
+      setSessionsLoading(false);
+    });
+
     return () => {
       mounted = false;
     };
   }, [patientId]);
 
-  const sessions = useMemo(() => patient ? getGameSessionsByPatient(patientId) : [], [patientId, patient]);
   const reminders = useMemo(() => patient ? getRemindersByPatient(patientId) : [], [patientId, patient]);
   const memories = useMemo(() => patient ? getMemoriesByPatient(patientId) : [], [patientId, patient]);
   const alerts = useMemo(() => patient ? getAlertsByPatient(patientId) : [], [patientId, patient]);
-  const uniqueGames = useMemo(() => patient ? getUniqueGamesByPatient(patientId) : [], [patientId, patient]);
+  const uniqueGames = useMemo(() => [...new Set(sessions.map((s) => s.gameName))], [sessions]);
 
   const timelineEvents = useMemo<TimelineEvent[]>(() => {
     if (!patient) return [];
@@ -98,7 +108,7 @@ export function PatientDetailPage() {
     return [...gameEvents, ...reminderEvents, ...memoryEvents, ...alertEvents].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 12);
   }, [patient, sessions, reminders, memories, alerts]);
 
-  if (loading) {
+  if (loading || sessionsLoading) {
     return <div className="mx-auto max-w-4xl"><div className="card p-5 text-sm text-slate-500">Loading patient...</div></div>;
   }
 
@@ -133,6 +143,12 @@ export function PatientDetailPage() {
         description={`Patient profile${patient.age !== undefined ? ` · Age ${patient.age}` : ''}`}
         actions={<PatientStatusBadge status={patient.status} />}
       />
+
+      {sessionsError && (
+        <div className="mb-6 card p-4 text-sm text-amber-700 bg-amber-50" role="alert">
+          Unable to load game performance data: {sessionsError}
+        </div>
+      )}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card flex items-center gap-3 p-4">
