@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, BookHeart, Eye, Heart, Home, Image, Plus, Repeat, User } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -7,9 +7,9 @@ import { MemoryList } from '@/components/patients/MemoryList';
 import { MemoryDetail } from '@/components/patients/MemoryDetail';
 import { MemoryFormDialog, type MemoryFormData } from '@/components/patients/MemoryFormDialog';
 import { TabBar } from '@/components/patients/TabBar';
-import { getPatientById } from '@/services/dataService';
+import { getPatientById } from '@/services/patientService';
 import { mockMemories } from '@/data/mockData';
-import type { MemoryEntry, MemoryCategory } from '@/types';
+import type { MemoryCategory, MemoryEntry, Patient } from '@/types';
 
 type TabId = 'all' | 'person' | 'place' | 'object' | 'memory' | 'routine' | 'inactive';
 
@@ -45,7 +45,25 @@ const categoryIconClasses: Record<MemoryCategory, { classes: string; icon: typeo
 
 export function MemoriesPage() {
   const { patientId = '' } = useParams();
-  const patient = getPatientById(patientId);
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    setLoading(true);
+    getPatientById(patientId).then((result) => {
+      if (!mounted) return;
+      setPatient(result.data);
+      setError(result.error);
+      setLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [patientId]);
 
   const [memories, setMemories] = useState<MemoryEntry[]>(() =>
     mockMemories.filter((m) => m.patientId === patientId)
@@ -66,11 +84,29 @@ export function MemoriesPage() {
   const activeCount = memories.filter((m) => m.active).length;
   const inactiveCount = memories.filter((m) => !m.active).length;
 
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-4xl">
+        <div className="card p-5 text-sm text-slate-500">Loading patient...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-4xl">
+        <div className="card p-5 text-sm text-red-600" role="alert">
+          Unable to load this patient: {error}
+        </div>
+      </div>
+    );
+  }
+
   if (!patient) {
     return (
       <div className="mx-auto max-w-4xl">
         <div className="card">
-          <EmptyState title="Patient not found" description="This patient profile is not available in the prototype." icon={User} />
+          <EmptyState title="Patient not found" description="This patient profile is not available." icon={User} />
         </div>
       </div>
     );

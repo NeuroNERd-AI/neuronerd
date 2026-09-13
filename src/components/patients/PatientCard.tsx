@@ -18,7 +18,9 @@ export function PatientCard({ patient, latestGame, reminderStatus, lastActiveLab
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-lg font-semibold text-blue-700">{patient.name.charAt(0)}</span>
           <div>
             <h2 className="font-semibold text-slate-900 group-hover:text-blue-700">{patient.name}</h2>
-            <p className="text-sm text-slate-500">Age {patient.age}</p>
+            <p className="text-sm text-slate-500">
+              {patient.age !== undefined ? `Age ${patient.age}` : 'Age not recorded'}
+            </p>
           </div>
         </div>
         <PatientStatusBadge status={patient.status} />

@@ -18,7 +18,9 @@ export function PatientRow({ patient, latestGame, reminderStatus, lastActiveLabe
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-semibold text-blue-700">{patient.name.charAt(0)}</span>
           <span>
             <span className="block text-sm font-semibold text-slate-800 group-hover:text-blue-700">{patient.name}</span>
-            <span className="block text-xs text-slate-500">Age {patient.age}</span>
+            <span className="block text-xs text-slate-500">
+              {patient.age !== undefined ? `Age ${patient.age}` : 'Age not recorded'}
+            </span>
           </span>
         </Link>
       </td>

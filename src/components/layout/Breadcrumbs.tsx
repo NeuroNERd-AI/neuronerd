@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { ChevronRight, Home } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { getPatientById } from '@/services/patientService';
 
 const sectionLabels: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -10,17 +12,45 @@ const sectionLabels: Record<string, string> = {
   games: 'Games',
   reminders: 'Reminders',
   memories: 'Memories',
+  analytics: 'Analytics',
+  manage: 'Manage',
 };
-
-function getLabel(segment: string, index: number): string {
-  if (index === 1 && segment.startsWith('p-')) return 'Patient profile';
-  return sectionLabels[segment] ?? 'Page';
-}
 
 export function Breadcrumbs() {
   const { pathname } = useLocation();
   const segments = pathname.split('/').filter(Boolean);
   const crumbs = segments.filter((segment) => segment !== 'login');
+  const [patientName, setPatientName] = useState<string | null>(null);
+
+  const patientId = crumbs[0] === 'patients' && crumbs[1] ? crumbs[1] : null;
+
+  useEffect(() => {
+    if (!patientId) {
+      setPatientName(null);
+      return;
+    }
+
+    let mounted = true;
+    getPatientById(patientId).then((result) => {
+      if (!mounted) return;
+      if (result.data?.name) {
+        setPatientName(result.data.name);
+      } else {
+        setPatientName(null);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [patientId]);
+
+  function getLabel(segment: string, index: number): string {
+    if (index === 1 && crumbs[0] === 'patients') {
+      return patientName || 'Patient profile';
+    }
+    return sectionLabels[segment] ?? 'Page';
+  }
 
   if (pathname === '/dashboard' || pathname === '/') {
     return null;

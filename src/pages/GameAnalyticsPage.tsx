@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, BarChart3, Gamepad2, User } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -7,7 +7,9 @@ import { GamePerformanceCard } from '@/components/patients/GamePerformanceCard';
 import { GamePerformanceTable } from '@/components/patients/GamePerformanceTable';
 import { GameSessionDetail } from '@/components/patients/GameSessionDetail';
 import { TabBar } from '@/components/patients/TabBar';
-import { getGameAnalyticsByPatient, getPatientById, type GameAnalytics } from '@/services/dataService';
+import { getGameAnalyticsByPatient, type GameAnalytics } from '@/services/dataService';
+import { getPatientById } from '@/services/patientService';
+import type { Patient } from '@/types';
 
 type TabId = 'overview' | 'memory_match' | 'object_recall' | 'pattern_sequence';
 
@@ -27,14 +29,51 @@ function getSessionsForTab(analytics: GameAnalytics[], tab: TabId) {
 export function GameAnalyticsPage() {
   const { patientId = '' } = useParams();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
-  const patient = getPatientById(patientId);
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    setLoading(true);
+    getPatientById(patientId).then((result) => {
+      if (!mounted) return;
+      setPatient(result.data);
+      setError(result.error);
+      setLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [patientId]);
+
   const analytics = useMemo(() => getGameAnalyticsByPatient(patientId), [patientId]);
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-4xl">
+        <div className="card p-5 text-sm text-slate-500">Loading patient...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-4xl">
+        <div className="card p-5 text-sm text-red-600" role="alert">
+          Unable to load this patient: {error}
+        </div>
+      </div>
+    );
+  }
 
   if (!patient) {
     return (
       <div className="mx-auto max-w-4xl">
         <div className="card">
-          <EmptyState title="Patient not found" description="This patient profile is not available in the prototype." icon={User} />
+          <EmptyState title="Patient not found" description="This patient profile is not available." icon={User} />
         </div>
       </div>
     );
