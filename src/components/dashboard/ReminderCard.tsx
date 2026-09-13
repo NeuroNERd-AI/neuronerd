@@ -26,18 +26,32 @@ export function formatReminderDate(value: string): string {
   return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(value));
 }
 
+function endOfToday(): Date {
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function isSameCalendarDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 export function isUpcoming(scheduledFor: string): boolean {
-  const now = new Date('2026-09-08T23:59:59Z');
+  const now = endOfToday();
   const scheduled = new Date(scheduledFor);
   return scheduled.getTime() > now.getTime();
 }
 
 export function isToday(scheduledFor: string): boolean {
-  return scheduledFor.startsWith('2026-09-08');
+  return isSameCalendarDay(new Date(scheduledFor), new Date());
 }
 
 export function isPast(scheduledFor: string): boolean {
-  const now = new Date('2026-09-08T23:59:59Z');
+  const now = endOfToday();
   const scheduled = new Date(scheduledFor);
   return scheduled.getTime() < now.getTime();
 }

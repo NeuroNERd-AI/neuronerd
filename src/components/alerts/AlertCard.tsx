@@ -9,9 +9,15 @@ interface AlertCardProps {
   onMarkUnread: (id: string) => void;
 }
 
+function endOfToday(): Date {
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
 function formatAlertTime(value: string): string {
   const date = new Date(value);
-  const now = new Date('2026-09-08T23:59:59Z');
+  const now = endOfToday();
   const diffMs = now.getTime() - date.getTime();
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffHours / 24);
