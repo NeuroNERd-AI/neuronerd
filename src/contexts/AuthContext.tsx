@@ -7,6 +7,7 @@ interface AuthContextValue {
   user: SupabaseUser | null;
   profile: UserProfile | null;
   caregiver: CaregiverRecord | null;
+  role: UserRole | null;
   loading: boolean;
   profileLoading: boolean;
   profileError: string | null;
@@ -28,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchIdRef = useRef(0);
   const currentAuthUserIdRef = useRef<string | null>(null);
 
-  const fetchProfile = useCallback(async (authUserId: string) => {
+  const fetchProfile = useCallback(async (authUserId: string, fallbackEmail?: string) => {
     const currentFetchId = ++fetchIdRef.current;
     setProfileLoading(true);
     setProfileError(null);
@@ -54,7 +55,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!profileData) {
         setProfile(null);
         setCaregiver(null);
-        setProfileError('Caregiver profile not found.');
+        setProfileError('User profile not found.');
+        setProfileLoading(false);
+        return;
+      }
+
+      const roleValue = profileData.role as UserRole;
+      const isValidRole =
+        roleValue === 'patient' ||
+        roleValue === 'caregiver' ||
+        roleValue === 'healthcare_worker' ||
+        roleValue === 'admin';
+
+      if (!isValidRole) {
+        setProfile(null);
+        setCaregiver(null);
+        setProfileError(`Invalid or missing profile role '${profileData.role}'.`);
         setProfileLoading(false);
         return;
       }
@@ -62,34 +78,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const resolvedProfile: UserProfile = {
         id: profileData.id,
         authUserId: profileData.auth_user_id,
-        displayName: profileData.display_name || 'Caregiver',
+        displayName: profileData.display_name || fallbackEmail?.split('@')[0] || 'User',
         locale: profileData.locale,
-        role: (profileData.role as UserRole) || 'caregiver',
+        role: roleValue,
       };
 
       setProfile(resolvedProfile);
 
-      const { data: caregiverData, error: caregiverErr } = await supabase
-        .from('caregivers')
-        .select('id, profile_id')
-        .eq('profile_id', profileData.id)
-        .is('deleted_at', null)
-        .maybeSingle();
+      if (roleValue === 'caregiver') {
+        const { data: caregiverData, error: caregiverErr } = await supabase
+          .from('caregivers')
+          .select('id, profile_id')
+          .eq('profile_id', profileData.id)
+          .is('deleted_at', null)
+          .maybeSingle();
 
-      if (fetchIdRef.current !== currentFetchId) return;
+        if (fetchIdRef.current !== currentFetchId) return;
 
-      if (caregiverErr) {
-        console.warn('Caregiver record lookup error:', caregiverErr.message);
+        if (caregiverErr) {
+          console.warn('Caregiver record lookup error:', caregiverErr.message);
+        }
+
+        setCaregiver(
+          caregiverData
+            ? {
+                id: caregiverData.id,
+                profileId: caregiverData.profile_id,
+              }
+            : null
+        );
+      } else {
+        setCaregiver(null);
       }
 
-      setCaregiver(
-        caregiverData
-          ? {
-              id: caregiverData.id,
-              profileId: caregiverData.profile_id,
-            }
-          : null
-      );
       setProfileLoading(false);
     } catch (err: unknown) {
       if (fetchIdRef.current !== currentFetchId) return;
@@ -103,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     if (user) {
-      await fetchProfile(user.id);
+      await fetchProfile(user.id, user.email);
     }
   }, [fetchProfile, user]);
 
@@ -131,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       currentAuthUserIdRef.current = nextUserId;
-      await fetchProfile(nextUserId);
+      await fetchProfile(nextUserId, sessionUser?.email);
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -174,6 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         profile,
         caregiver,
+        role: profile?.role ?? null,
         loading,
         profileLoading,
         profileError,

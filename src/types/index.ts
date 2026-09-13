@@ -1,4 +1,4 @@
-export type UserRole = 'caregiver' | 'healthcare_worker' | 'admin';
+export type UserRole = 'patient' | 'caregiver' | 'healthcare_worker' | 'admin';
 
 export interface User {
   id: string;
