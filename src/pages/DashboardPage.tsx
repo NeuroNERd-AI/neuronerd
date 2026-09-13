@@ -17,7 +17,8 @@ import { ReminderCard } from '@/components/dashboard/ReminderCard';
 import { SummaryCard } from '@/components/dashboard/SummaryCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { PatientStatusBadge } from '@/components/ui/StatusBadge';
-import { mockAlerts, mockCurrentUser, mockGameSessions } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
+import { mockAlerts, mockGameSessions } from '@/data/mockData';
 import {
   getDailyActivity,
   getPatientById,
@@ -32,6 +33,7 @@ function formatDate(value: string): string {
 }
 
 export function DashboardPage() {
+  const { user, profile } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [patientsLoading, setPatientsLoading] = useState(true);
   const [patientError, setPatientError] = useState<string | null>(null);
@@ -60,10 +62,13 @@ export function DashboardPage() {
   const completedReminders = todayReminders.filter((reminder) => reminder.completed).length;
   const engagedPercentage = patients.length > 0 ? Math.round((activePatientIds.size / patients.length) * 100) : 0;
 
+  const displayName = profile?.displayName || user?.email?.split('@')[0] || 'Caregiver';
+  const firstName = displayName.split(' ')[0] || 'Caregiver';
+
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeader
-        title={`Good morning, ${mockCurrentUser.name.split(' ')[0]}`}
+        title={`Good morning, ${firstName}`}
         description="Here is how your care circle is doing today."
         actions={<span className="hidden text-sm text-slate-500 sm:block">Tuesday, September 8, 2026</span>}
       />

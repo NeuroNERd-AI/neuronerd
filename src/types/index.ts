@@ -8,6 +8,19 @@ export interface User {
   avatarUrl?: string;
 }
 
+export interface UserProfile {
+  id: string;
+  authUserId: string;
+  displayName: string;
+  locale: string | null;
+  role: UserRole;
+}
+
+export interface CaregiverRecord {
+  id: string;
+  profileId: string;
+}
+
 export type PatientStatus = 'stable' | 'needs_attention' | 'critical';
 
 export interface Patient {

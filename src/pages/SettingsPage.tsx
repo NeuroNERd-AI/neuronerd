@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Bell,
   Contrast,
@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
-import { mockCurrentUser } from '@/data/mockData';
 
 type TextSize = 'small' | 'medium' | 'large';
 type Theme = 'light' | 'dark' | 'system';
@@ -106,9 +105,9 @@ const navLinks = [
 ];
 
 export function SettingsPage() {
-  const { signOut } = useAuth();
-  const [name, setName] = useState(mockCurrentUser.name);
-  const [email, setEmail] = useState(mockCurrentUser.email);
+  const { user, profile, signOut } = useAuth();
+  const [name, setName] = useState(profile?.displayName || user?.email?.split('@')[0] || 'Caregiver');
+  const [email, setEmail] = useState(user?.email || '');
   const [textSize, setTextSize] = useState<TextSize>('medium');
   const [reducedMotion, setReducedMotion] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
@@ -123,6 +122,17 @@ export function SettingsPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [showTooltips, setShowTooltips] = useState(true);
   const [savedFlash, setSavedFlash] = useState(false);
+
+  useEffect(() => {
+    if (profile?.displayName) {
+      setName(profile.displayName);
+    } else if (user?.email) {
+      setName(user.email.split('@')[0]);
+    }
+    if (user?.email) {
+      setEmail(user.email);
+    }
+  }, [profile?.displayName, user?.email]);
 
   const handleSave = () => {
     setSavedFlash(true);
@@ -176,11 +186,11 @@ export function SettingsPage() {
           <div className="space-y-4 py-3">
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-600 text-lg font-bold text-white">
-                {name.charAt(0).toUpperCase()}
+                {(name.trim().charAt(0) || 'C').toUpperCase()}
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-900">{name}</p>
-                <p className="text-xs text-slate-500">Caregiver</p>
+                <p className="text-xs capitalize text-slate-500">{profile?.role ? profile.role.replace('_', ' ') : 'Caregiver'}</p>
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">

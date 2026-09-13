@@ -1,14 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { mockAlerts, mockCurrentUser } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
+import { mockAlerts } from '@/data/mockData';
+import type { User } from '@/types';
 import { Breadcrumbs } from './Breadcrumbs';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 
 export function AppLayout() {
+  const { user, profile } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { pathname } = useLocation();
   const unreadAlerts = mockAlerts.filter((alert) => !alert.read).length;
+
+  const currentUser: User = {
+    id: profile?.id ?? user?.id ?? 'caregiver',
+    name: profile?.displayName || user?.email?.split('@')[0] || 'Caregiver',
+    email: user?.email || '',
+    role: profile?.role || 'caregiver',
+  };
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -38,7 +48,7 @@ export function AppLayout() {
         <Topbar
           onMenuClick={() => setSidebarOpen(true)}
           menuOpen={sidebarOpen}
-          user={mockCurrentUser}
+          user={currentUser}
           alertCount={unreadAlerts}
         />
         <main id="main-content" className="flex-1 px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
